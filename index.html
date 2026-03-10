@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#080808" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="FuelLog" />
+  <link rel="apple-touch-icon" href="https://fuellog.vercel.app/icon-192.png" />
+  <link rel="manifest" href="manifest.json" />
+  <title>FuelLog</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{width:100%;min-height:100%;background:#080808;overscroll-behavior:none;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased}
+    #root{width:100%;min-height:100dvh}
+    input[type=number]{-moz-appearance:textfield}
+    input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="text/babel" data-presets="react">
+    const { useState, useEffect, useRef } = React;
+
+
+const TARGETS = { kcal: 2550, protein: 185, carbs: 245, fat: 65, water: 3500 };
+
+const FOOD_DB = [
+  { id: "tuna_brine",      name: "Tuna in Brine (drained)",       emoji: "🐠", per100: { kcal: 109, protein: 25, carbs: 0,   fat: 0.6 } },
+  { id: "tuna_spring",     name: "Tuna in Spring Water",          emoji: "🐠", per100: { kcal: 103, protein: 24, carbs: 0,   fat: 0.5 } },
+  { id: "tuna_oil",        name: "Tuna in Olive Oil (drained)",   emoji: "🐠", per100: { kcal: 189, protein: 25, carbs: 0,   fat: 10  } },
+  { id: "tuna_chunks",     name: "Tuna Chunks (130g tin)",        emoji: "🐠", per100: { kcal: 111, protein: 26, carbs: 0,   fat: 0.7 }, defaultG: 130 },
+  { id: "sardines_brine",  name: "Sardines in Brine",             emoji: "🐟", per100: { kcal: 172, protein: 21, carbs: 0,   fat: 10  }, defaultG: 95  },
+  { id: "sardines_oil",    name: "Sardines in Olive Oil",         emoji: "🐟", per100: { kcal: 208, protein: 20, carbs: 0,   fat: 14  }, defaultG: 95  },
+  { id: "sardines_tomato", name: "Sardines in Tomato Sauce",      emoji: "🐟", per100: { kcal: 162, protein: 18, carbs: 3,   fat: 9   }, defaultG: 120 },
+  { id: "mackerel_brine",  name: "Mackerel in Brine",             emoji: "🐡", per100: { kcal: 183, protein: 22, carbs: 0,   fat: 11  }, defaultG: 125 },
+  { id: "mackerel_oil",    name: "Mackerel in Sunflower Oil",     emoji: "🐡", per100: { kcal: 239, protein: 20, carbs: 0,   fat: 18  }, defaultG: 125 },
+  { id: "mackerel_pepper", name: "Mackerel in Pepper Sauce",      emoji: "🐡", per100: { kcal: 197, protein: 19, carbs: 2,   fat: 13  }, defaultG: 125 },
+  { id: "salmon_tin",      name: "Canned Salmon (pink, drained)", emoji: "🐟", per100: { kcal: 139, protein: 23, carbs: 0,   fat: 5   }, defaultG: 130 },
+  { id: "salmon_red_tin",  name: "Canned Red Salmon",             emoji: "🐟", per100: { kcal: 153, protein: 22, carbs: 0,   fat: 7   }, defaultG: 130 },
+  { id: "anchovies",       name: "Anchovies in Oil (drained)",    emoji: "🐟", per100: { kcal: 210, protein: 29, carbs: 0,   fat: 10  }, defaultG: 30  },
+  { id: "pilchards",       name: "Pilchards in Tomato Sauce",     emoji: "🐟", per100: { kcal: 126, protein: 17, carbs: 2,   fat: 6   }, defaultG: 155 },
+  { id: "herring",         name: "Herring in Brine",              emoji: "🐟", per100: { kcal: 158, protein: 19, carbs: 0,   fat: 9   }, defaultG: 110 },
+  { id: "crab_tin",        name: "Canned Crab Meat",              emoji: "🦀", per100: { kcal: 82,  protein: 18, carbs: 0,   fat: 1   }, defaultG: 120 },
+  { id: "prawns_tin",      name: "Canned Prawns (drained)",       emoji: "🦐", per100: { kcal: 99,  protein: 22, carbs: 0,   fat: 1   }, defaultG: 100 },
+  { id: "chicken_breast",  name: "Chicken Breast",                emoji: "🍗", per100: { kcal: 165, protein: 31, carbs: 0,   fat: 3.6 } },
+  { id: "eggs",            name: "Whole Egg",                     emoji: "🥚", per100: { kcal: 155, protein: 13, carbs: 1,   fat: 11  } },
+  { id: "greek_yoghurt",   name: "Greek Yoghurt (0%)",            emoji: "🥛", per100: { kcal: 59,  protein: 10, carbs: 3.6, fat: 0.4 } },
+  { id: "whey",            name: "Whey Protein (1 scoop)",        emoji: "🥤", per100: { kcal: 120, protein: 24, carbs: 3,   fat: 2   }, defaultG: 30  },
+  { id: "cottage_cheese",  name: "Cottage Cheese",                emoji: "🧀", per100: { kcal: 98,  protein: 11, carbs: 3.4, fat: 4.3 } },
+  { id: "turkey_mince",    name: "Turkey Mince (5% fat)",         emoji: "🦃", per100: { kcal: 149, protein: 29, carbs: 0,   fat: 3.5 } },
+  { id: "beef_mince",      name: "Beef Mince (5% fat)",           emoji: "🥩", per100: { kcal: 137, protein: 21, carbs: 0,   fat: 5   } },
+  { id: "white_rice",      name: "White Rice (cooked)",           emoji: "🍚", per100: { kcal: 130, protein: 2.7,carbs: 28,  fat: 0.3 } },
+  { id: "oats",            name: "Rolled Oats (dry)",             emoji: "🌾", per100: { kcal: 389, protein: 17, carbs: 66,  fat: 7   } },
+  { id: "sweet_potato",    name: "Sweet Potato",                  emoji: "🍠", per100: { kcal: 86,  protein: 1.6,carbs: 20,  fat: 0.1 } },
+  { id: "banana",          name: "Banana",                        emoji: "🍌", per100: { kcal: 89,  protein: 1.1,carbs: 23,  fat: 0.3 }, defaultG: 120 },
+  { id: "bread_whole",     name: "Wholegrain Bread (1 slice)",    emoji: "🍞", per100: { kcal: 247, protein: 9,  carbs: 41,  fat: 3   }, defaultG: 40  },
+  { id: "pasta",           name: "Pasta (cooked)",                emoji: "🍝", per100: { kcal: 158, protein: 5.8,carbs: 31,  fat: 0.9 } },
+  { id: "avocado",         name: "Avocado",                       emoji: "🥑", per100: { kcal: 160, protein: 2,  carbs: 9,   fat: 15  } },
+  { id: "olive_oil",       name: "Olive Oil (1 tbsp)",            emoji: "🫙", per100: { kcal: 884, protein: 0,  carbs: 0,   fat: 100 }, defaultG: 14  },
+  { id: "almonds",         name: "Almonds",                       emoji: "🌰", per100: { kcal: 579, protein: 21, carbs: 22,  fat: 50  } },
+  { id: "broccoli",        name: "Broccoli",                      emoji: "🥦", per100: { kcal: 34,  protein: 2.8,carbs: 7,   fat: 0.4 } },
+  { id: "spinach",         name: "Spinach",                       emoji: "🥬", per100: { kcal: 23,  protein: 2.9,carbs: 3.6, fat: 0.4 } },
+];
+
+const MEALS = [
+  {
+    id: "breakfast", label: "Breakfast", emoji: "🌅", time: "~8:00am",
+    proteinTarget: 40, carbTarget: 50, fatTarget: 15,
+    note: "Start strong — front-load your protein",
+    fish: [
+      { name: "Tuna in Brine",     grams: 160, tins: "1.2 tins (130g each)" },
+      { name: "Sardines in Brine", grams: 190, tins: "2 tins (95g each)" },
+      { name: "Mackerel in Brine", grams: 182, tins: "1.5 tins (125g each)" },
+    ],
+  },
+  {
+    id: "lunch", label: "Lunch", emoji: "☀️", time: "~1:00pm",
+    proteinTarget: 35, carbTarget: 40, fatTarget: 15,
+    note: "Mid-day — moderate carbs, healthy fats OK",
+    fish: [
+      { name: "Tuna in Brine",     grams: 140, tins: "1 tin + small top-up" },
+      { name: "Sardines in Brine", grams: 167, tins: "~1.75 tins (95g each)" },
+      { name: "Mackerel in Brine", grams: 159, tins: "1.25 tins (125g each)" },
+    ],
+  },
+  {
+    id: "dinner", label: "Dinner", emoji: "🌙", time: "~7:00pm",
+    proteinTarget: 35, carbTarget: 40, fatTarget: 15,
+    note: "Last main meal — keep fat moderate before training",
+    fish: [
+      { name: "Tuna in Brine",       grams: 140, tins: "1 tin + small top-up" },
+      { name: "Pilchards in Tomato", grams: 206, tins: "1.3 tins (155g each)" },
+      { name: "Salmon (canned)",     grams: 152, tins: "1.2 tins (130g each)" },
+    ],
+  },
+  {
+    id: "pre_workout", label: "Pre-Workout", emoji: "⚡", time: "~11:30pm (90 min before 1am)",
+    proteinTarget: 35, carbTarget: 70, fatTarget: 10,
+    note: "High carbs for fuel. Keep fat low to speed digestion",
+    fish: [
+      { name: "Tuna in Spring Water", grams: 146, tins: "1 tin + small top-up" },
+      { name: "Sardines in Brine",    grams: 167, tins: "~1.75 tins (95g each)" },
+      { name: "Mackerel in Brine",    grams: 159, tins: "1.25 tins (125g each)" },
+    ],
+  },
+  {
+    id: "post_workout", label: "Post-Workout", emoji: "🔄", time: "~2:30–3:00am",
+    proteinTarget: 40, carbTarget: 45, fatTarget: 5,
+    note: "Fast protein + fast carbs. Minimal fat — MPS window is open",
+    fish: [
+      { name: "Tuna in Brine",     grams: 160, tins: "1.2 tins + white rice" },
+      { name: "Sardines in Brine", grams: 190, tins: "2 tins (95g each)" },
+      { name: "Salmon (canned)",   grams: 174, tins: "1.3 tins (130g each)" },
+    ],
+  },
+  {
+    id: "snacks", label: "Snacks / Other", emoji: "🍎", time: "Anytime",
+    proteinTarget: 0, carbTarget: 0, fatTarget: 5,
+    note: "Greek yoghurt, cottage cheese, eggs to fill gaps",
+    fish: [],
+  },
+];
+
+const A = "#C8F135";
+const DARK = "#080808";
+const CARD = "#111";
+const BORDER = "#1e1e1e";
+const MUTED = "#666";
+const WHITE = "#f0f0f0";
+const dateKey = (d = new Date()) => d.toISOString().slice(0, 10);
+const STORAGE_KEY = "liftlog-nutrition-v1";
+
+function loadData() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); }
+  catch (_) { return {}; }
+}
+function saveData(d) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch (_) {}
+}
+function entryMacros(entry) {
+  const food = FOOD_DB.find(f => f.id === entry.foodId);
+  if (!food) return { kcal: entry.kcal||0, protein: entry.protein||0, carbs: entry.carbs||0, fat: entry.fat||0 };
+  const r = entry.grams / 100;
+  return {
+    kcal:    Math.round(food.per100.kcal    * r),
+    protein: Math.round(food.per100.protein * r * 10) / 10,
+    carbs:   Math.round(food.per100.carbs   * r * 10) / 10,
+    fat:     Math.round(food.per100.fat     * r * 10) / 10,
+  };
+}
+
+function MacroMini({ label, current, target, color }) {
+  if (target <= 0) return null;
+  const pct = Math.min(current / target, 1);
+  const over = current > target;
+  const hit  = current >= target;
+  return (
+    <div style={{ background: "#0a0a0a", borderRadius: 9, padding: "8px 10px", border: "1px solid " + (hit ? color+"44" : "#1a1a1a") }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+        <span style={{ fontSize: 9, color: MUTED, letterSpacing: 1 }}>{label}</span>
+        <span style={{ fontSize: 10, color: over ? "#F13535" : hit ? color : WHITE, fontWeight: 600 }}>
+          {current}<span style={{ color: "#444", fontWeight: 400 }}>/{target}g</span>
+        </span>
+      </div>
+      <div style={{ height: 4, background: "#1e1e1e", borderRadius: 2, overflow: "hidden" }}>
+        <div style={{ width: pct*100+"%", height: "100%", background: over ? "#F13535" : hit ? color : color+"55", borderRadius: 2, transition: "width 0.4s ease" }} />
+      </div>
+    </div>
+  );
+}
+
+function MacroBar({ label, current, target, color }) {
+  const pct = Math.min(current / target, 1);
+  const over = current > target;
+  return (
+    <div style={{ flex: 1 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+        <span style={{ fontSize: 10, color: MUTED, letterSpacing: 1 }}>{label}</span>
+        <span style={{ fontSize: 10, color: over ? "#F13535" : color, fontWeight: 600 }}>
+          {current}g<span style={{ color: "#444" }}>/{target}g</span>
+        </span>
+      </div>
+      <div style={{ height: 6, background: "#1a1a1a", borderRadius: 3, overflow: "hidden" }}>
+        <div style={{ width: pct*100+"%", height: "100%", background: over ? "#F13535" : color, borderRadius: 3, transition: "width 0.4s ease" }} />
+      </div>
+    </div>
+  );
+}
+
+function WaterTracker({ ml, onChange }) {
+  const glasses = 12;
+  const vol = Math.round(TARGETS.water / glasses);
+  const filled = Math.round(ml / vol);
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+        <span style={{ fontSize: 11, color: MUTED, letterSpacing: 1 }}>WATER</span>
+        <span style={{ fontSize: 11, color: ml >= TARGETS.water ? "#35C8F1" : MUTED }}>
+          {(ml/1000).toFixed(1)}L <span style={{ color: "#444" }}>/ {TARGETS.water/1000}L</span>
+        </span>
+      </div>
+      <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+        {Array.from({ length: glasses }).map((_, i) => (
+          <button key={i} onClick={() => onChange(i < filled ? i*vol : (i+1)*vol)}
+            style={{ width: 28, height: 32, borderRadius: 5, background: i < filled ? "#35C8F122" : "#0d0d0d", border: "1px solid "+(i < filled ? "#35C8F155" : BORDER), cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", color: i < filled ? "#35C8F1" : "#333" }}>
+            💧
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MealCard({ meal, entries, mt, onAdd, onRemove }) {
+  const allHit = meal.proteinTarget > 0
+    && mt.protein >= meal.proteinTarget
+    && mt.carbs   >= meal.carbTarget
+    && mt.fat     >= meal.fatTarget;
+
+  return (
+    <div style={{ background: CARD, borderRadius: 14, border: "1px solid "+(allHit ? A+"44" : BORDER), padding: "14px 16px", marginBottom: 10, transition: "border-color 0.2s" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 10 }}>
+        <span style={{ fontSize: 20, marginTop: 1 }}>{meal.emoji}</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ fontFamily: "'DM Sans',sans-serif", fontWeight: 700, fontSize: 14 }}>{meal.label}</span>
+            {allHit && <span style={{ fontSize: 10, color: A, fontWeight: 700 }}>✓ targets hit</span>}
+          </div>
+          <div style={{ fontSize: 10, color: MUTED, marginTop: 2 }}>{meal.time}</div>
+          <div style={{ fontSize: 10, color: "#555", marginTop: 2 }}>{meal.note}</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {entries.length > 0 && (
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 12, color: A, fontWeight: 600 }}>{Math.round(mt.kcal)} kcal</div>
+            </div>
+          )}
+          <button onClick={onAdd} style={{ background: A+"18", border: "1px solid "+A+"44", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 12, color: A, fontFamily: "'DM Sans',sans-serif", fontWeight: 700 }}>
+            + Add
+          </button>
+        </div>
+      </div>
+
+      {meal.proteinTarget > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
+          <MacroMini label="PROTEIN" current={Math.round(mt.protein)} target={meal.proteinTarget} color="#C8F135" />
+          <MacroMini label="CARBS"   current={Math.round(mt.carbs)}   target={meal.carbTarget}    color="#35C8F1" />
+          <MacroMini label="FAT"     current={Math.round(mt.fat)}     target={meal.fatTarget}     color="#F1A835" />
+        </div>
+      )}
+
+      {meal.fish.length > 0 && mt.protein < meal.proteinTarget && (
+        <div style={{ background: "#0a0a0a", border: "1px solid #1a1a1a", borderRadius: 9, padding: "10px 12px", marginBottom: entries.length ? 10 : 0 }}>
+          <div style={{ fontSize: 9, color: MUTED, letterSpacing: 1.5, marginBottom: 7 }}>🐟 TO HIT {meal.proteinTarget}g PROTEIN</div>
+          {meal.fish.map((f, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: i < meal.fish.length-1 ? 4 : 0 }}>
+              <div style={{ fontSize: 11, color: "#888", flex: 1 }}>{f.name}</div>
+              <div style={{ fontSize: 12, color: WHITE, fontWeight: 700 }}>{f.grams}g</div>
+              <div style={{ fontSize: 10, color: "#555" }}>({f.tins})</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {entries.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          {entries.map(e => {
+            const m = entryMacros(e);
+            const food = FOOD_DB.find(f => f.id === e.foodId);
+            return (
+              <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", background: "#0d0d0d", borderRadius: 8 }}>
+                <span style={{ fontSize: 14 }}>{food ? food.emoji : "🍽️"}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600 }}>{e.custom ? e.name : (food ? food.name : "Custom")}</div>
+                  <div style={{ fontSize: 10, color: MUTED }}>{e.grams ? e.grams+"g · " : ""}{m.protein}g P · {m.carbs}g C · {m.fat}g F</div>
+                </div>
+                <div style={{ fontSize: 12, color: A }}>{m.kcal} kcal</div>
+                <button onClick={() => onRemove(e.id)} style={{ background: "transparent", border: "none", color: "#444", cursor: "pointer", fontSize: 16, padding: "0 4px" }}>×</button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function App() {
+  const [data,         setData]         = useState(() => loadData());
+  const [date,         setDate]         = useState(dateKey());
+  const [nav,          setNav]          = useState("today");
+  const [activeMeal,   setActiveMeal]   = useState(null);
+  const [search,       setSearch]       = useState("");
+  const [selectedFood, setSelectedFood] = useState(null);
+  const [grams,        setGrams]        = useState("");
+  const [customMode,   setCustomMode]   = useState(false);
+  const [custom,       setCustom]       = useState({ name:"", kcal:"", protein:"", carbs:"", fat:"" });
+  const [toast,        setToast]        = useState(null);
+  const toastRef = useRef();
+
+  useEffect(() => { saveData(data); }, [data]);
+
+  const showToast = (msg) => {
+    setToast(msg);
+    clearTimeout(toastRef.current);
+    toastRef.current = setTimeout(() => setToast(null), 2200);
+  };
+
+  const today       = data[date] || { meals: {}, water: 0 };
+  const mealEntries = (id) => (today.meals && today.meals[id]) || [];
+  const mealTotals  = (id) => mealEntries(id).reduce((a, e) => {
+    const m = entryMacros(e);
+    return { kcal: a.kcal+m.kcal, protein: a.protein+m.protein, carbs: a.carbs+m.carbs, fat: a.fat+m.fat };
+  }, { kcal:0, protein:0, carbs:0, fat:0 });
+
+  const allEntries = Object.values(today.meals || {}).flat();
+  const totals = allEntries.reduce((a, e) => {
+    const m = entryMacros(e);
+    return { kcal: a.kcal+m.kcal, protein: a.protein+m.protein, carbs: a.carbs+m.carbs, fat: a.fat+m.fat };
+  }, { kcal:0, protein:0, carbs:0, fat:0 });
+
+  const calRemaining = TARGETS.kcal - Math.round(totals.kcal);
+  const ringR = 52, ringS = 8, ringW = 120;
+  const ringC = 2 * Math.PI * ringR;
+  const ringF = Math.min(totals.kcal / TARGETS.kcal, 1) * ringC;
+  const ringOver = totals.kcal > TARGETS.kcal;
+
+  const filteredFoods = FOOD_DB.filter(f => f.name.toLowerCase().includes(search.toLowerCase()));
+  const histDates = Object.keys(data).sort((a,b) => b.localeCompare(a));
+
+  const dayTotals = (d) => Object.values((data[d] && data[d].meals) || {}).flat().reduce((a, e) => {
+    const m = entryMacros(e);
+    return { kcal: a.kcal+m.kcal, protein: a.protein+m.protein };
+  }, { kcal:0, protein:0 });
+
+  const previewMacros = (selectedFood && grams)
+    ? entryMacros({ foodId: selectedFood.id, grams: parseFloat(grams)||0 })
+    : null;
+
+  const addEntry = () => {
+    let entry;
+    if (customMode) {
+      if (!custom.name || !custom.kcal) return;
+      entry = { id: Date.now(), custom: true, name: custom.name, kcal: parseFloat(custom.kcal), protein: parseFloat(custom.protein||0), carbs: parseFloat(custom.carbs||0), fat: parseFloat(custom.fat||0) };
+    } else {
+      if (!selectedFood || !grams) return;
+      entry = { id: Date.now(), foodId: selectedFood.id, grams: parseFloat(grams) };
+    }
+    setData(d => ({
+      ...d,
+      [date]: {
+        ...(d[date] || { meals:{}, water:0 }),
+        meals: { ...((d[date] && d[date].meals) || {}), [activeMeal]: [...((d[date] && d[date].meals && d[date].meals[activeMeal]) || []), entry] },
+      },
+    }));
+    const mealLabel = (MEALS.find(m => m.id === activeMeal) || {}).label || "meal";
+    setActiveMeal(null); setSelectedFood(null); setGrams(""); setSearch("");
+    setCustomMode(false); setCustom({ name:"", kcal:"", protein:"", carbs:"", fat:"" });
+    setNav("today");
+    showToast("✓ Added to " + mealLabel);
+  };
+
+  const removeEntry = (mealId, entryId) => {
+    setData(d => ({
+      ...d,
+      [date]: { ...d[date], meals: { ...d[date].meals, [mealId]: d[date].meals[mealId].filter(e => e.id !== entryId) } },
+    }));
+  };
+
+  const setWater = (ml) => {
+    setData(d => ({ ...d, [date]: { ...(d[date] || { meals:{} }), water: Math.max(0, ml) } }));
+  };
+
+  return (
+    <div style={{ background: DARK, minHeight: "100dvh", color: WHITE, fontFamily: "'DM Mono','Courier New',monospace", maxWidth: 860, margin: "0 auto" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Bebas+Neue&family=DM+Sans:wght@400;600;700&display=swap');
+        * { box-sizing:border-box; margin:0; padding:0; }
+        ::-webkit-scrollbar{width:4px} ::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
+        @keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+        .fade{animation:slideUp 0.22s ease}
+        .food-item:hover{background:#1a1a1a !important}
+        .field{background:#0d0d0d;border:1px solid #2a2a2a;border-radius:8px;padding:10px 14px;color:#f0f0f0;font-family:inherit;font-size:15px;width:100%;outline:none;transition:border-color 0.15s}
+        .field:focus{border-color:#C8F135} .field::placeholder{color:#333}
+        input[type=number]{-moz-appearance:textfield}
+        input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+      `}</style>
+
+      {/* Header */}
+      <div style={{ padding:"16px 16px 0", position:"sticky", top:0, background:DARK, zIndex:50, borderBottom:"1px solid "+BORDER }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+          <div>
+            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:30, letterSpacing:2, lineHeight:1 }}>FUEL<span style={{ color:A }}>LOG</span></div>
+            <div style={{ fontSize:9, color:MUTED, letterSpacing:2, marginTop:1 }}>NUTRITION TRACKER</div>
+          </div>
+          <div style={{ display:"flex", gap:6 }}>
+            {[["today","🥗","Today"],["log","➕","Log"],["history","📅","History"]].map(([id,icon,label]) => (
+              <button key={id} onClick={() => setNav(id)} style={{ background:nav===id?A:"transparent", color:nav===id?DARK:MUTED, border:"1px solid "+(nav===id?A:BORDER), borderRadius:8, padding:"7px 10px", cursor:"pointer", fontSize:11, fontFamily:"'DM Sans',sans-serif", fontWeight:700, display:"flex", alignItems:"center", gap:4, transition:"all 0.15s" }}>
+                <span style={{ fontSize:13 }}>{icon}</span><span>{label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", paddingBottom:14 }}>
+          <div style={{ display:"flex", gap:6 }}>
+            {[0,-1].map(offset => {
+              const d2 = new Date(); d2.setDate(d2.getDate()+offset);
+              const k = dateKey(d2);
+              return (
+                <button key={offset} onClick={() => setDate(k)} style={{ background:date===k?A+"22":"transparent", color:date===k?A:MUTED, border:"1px solid "+(date===k?A+"44":BORDER), borderRadius:7, padding:"5px 12px", cursor:"pointer", fontSize:11, fontFamily:"inherit" }}>
+                  {offset===0?"Today":"Yesterday"}
+                </button>
+              );
+            })}
+          </div>
+          <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ background:"#0d0d0d", border:"1px solid "+BORDER, borderRadius:8, padding:"6px 10px", color:MUTED, fontFamily:"inherit", fontSize:11, cursor:"pointer", outline:"none" }} />
+        </div>
+      </div>
+
+      <div style={{ padding:"0 16px 100px" }}>
+
+        {/* TODAY */}
+        {nav === "today" && (
+          <div className="fade">
+            <div style={{ background:CARD, borderRadius:16, border:"1px solid "+BORDER, padding:"20px 18px", marginTop:16, marginBottom:14 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:20, flexWrap:"wrap" }}>
+                <div style={{ position:"relative", width:ringW, height:ringW, flexShrink:0 }}>
+                  <svg width={ringW} height={ringW} style={{ transform:"rotate(-90deg)" }}>
+                    <circle cx={ringW/2} cy={ringW/2} r={ringR} fill="none" stroke="#1a1a1a" strokeWidth={ringS} />
+                    <circle cx={ringW/2} cy={ringW/2} r={ringR} fill="none" stroke={ringOver?"#F13535":A} strokeWidth={ringS}
+                      strokeDasharray={ringF+" "+ringC} strokeLinecap="round" style={{ transition:"stroke-dasharray 0.5s ease" }} />
+                  </svg>
+                  <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
+                    <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:28, color:ringOver?"#F13535":A, lineHeight:1 }}>{Math.round(totals.kcal)}</div>
+                    <div style={{ fontSize:9, color:MUTED }}>KCAL</div>
+                  </div>
+                </div>
+                <div style={{ flex:1, minWidth:180 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", marginBottom:12 }}>
+                    <div>
+                      <div style={{ fontSize:9, color:MUTED, letterSpacing:1 }}>REMAINING</div>
+                      <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:26, color:calRemaining>=0?WHITE:"#F13535", lineHeight:1 }}>
+                        {Math.abs(calRemaining)}<span style={{ fontSize:12, color:MUTED }}> {calRemaining<0?"over":"left"}</span>
+                      </div>
+                    </div>
+                    <div style={{ textAlign:"right" }}>
+                      <div style={{ fontSize:9, color:MUTED }}>TARGET</div>
+                      <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:20, color:MUTED }}>{TARGETS.kcal} kcal</div>
+                    </div>
+                  </div>
+                  <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                    <MacroBar label="PROTEIN" current={Math.round(totals.protein)} target={TARGETS.protein} color="#C8F135" />
+                    <MacroBar label="CARBS"   current={Math.round(totals.carbs)}   target={TARGETS.carbs}   color="#35C8F1" />
+                    <MacroBar label="FAT"     current={Math.round(totals.fat)}     target={TARGETS.fat}     color="#F1A835" />
+                  </div>
+                </div>
+              </div>
+              {totals.protein/TARGETS.protein < 0.5 && totals.kcal > 500 && (
+                <div style={{ marginTop:14, padding:"10px 14px", background:"#C8F13511", border:"1px solid #C8F13533", borderRadius:9, fontSize:12, color:A }}>
+                  ⚠️ Protein low — need {TARGETS.protein}g today, at {Math.round(totals.protein)}g so far
+                </div>
+              )}
+            </div>
+
+            <div style={{ background:CARD, borderRadius:14, border:"1px solid "+BORDER, padding:"16px 18px", marginBottom:14 }}>
+              <WaterTracker ml={today.water||0} onChange={setWater} />
+            </div>
+
+            {MEALS.map(meal => (
+              <MealCard key={meal.id} meal={meal}
+                entries={mealEntries(meal.id)}
+                mt={mealTotals(meal.id)}
+                onAdd={() => { setActiveMeal(meal.id); setNav("log"); }}
+                onRemove={(id) => removeEntry(meal.id, id)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* LOG FOOD */}
+        {nav === "log" && (
+          <div className="fade" style={{ marginTop:16 }}>
+            <div style={{ marginBottom:14 }}>
+              <div style={{ fontSize:10, color:MUTED, letterSpacing:1.5, marginBottom:8 }}>SELECT MEAL</div>
+              <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                {MEALS.map(m => (
+                  <button key={m.id} onClick={() => setActiveMeal(m.id)} style={{ background:activeMeal===m.id?A+"22":"transparent", color:activeMeal===m.id?A:MUTED, border:"1px solid "+(activeMeal===m.id?A+"55":BORDER), borderRadius:8, padding:"7px 12px", cursor:"pointer", fontSize:12, fontFamily:"inherit", display:"flex", alignItems:"center", gap:5 }}>
+                    <span>{m.emoji}</span> {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display:"flex", gap:6, marginBottom:14 }}>
+              {[false,true].map(isC => (
+                <button key={String(isC)} onClick={() => setCustomMode(isC)} style={{ flex:1, background:customMode===isC?A:"transparent", color:customMode===isC?DARK:MUTED, border:"1px solid "+(customMode===isC?A:BORDER), borderRadius:9, padding:"9px", cursor:"pointer", fontSize:12, fontFamily:"'DM Sans',sans-serif", fontWeight:700 }}>
+                  {isC ? "✏️ Custom Entry" : "🔍 Search Foods"}
+                </button>
+              ))}
+            </div>
+
+            {!customMode ? (
+              <>
+                <input className="field" placeholder="Search tuna, mackerel, sardines, chicken..." value={search} onChange={e => setSearch(e.target.value)} style={{ marginBottom:8 }} />
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:12 }}>
+                  {[["🐟 Canned Fish","in"],["🍗 Meat","mince"],["🌾 Carbs","rice"],["🥚 Dairy","yoghurt"],["🥦 Veg","broccoli"]].map(([label,term]) => (
+                    <button key={label} onClick={() => setSearch(prev => prev===term?"":term)} style={{ background:search===term?A+"22":"#0d0d0d", color:search===term?A:MUTED, border:"1px solid "+(search===term?A+"44":BORDER), borderRadius:20, padding:"5px 12px", cursor:"pointer", fontSize:11, fontFamily:"inherit", whiteSpace:"nowrap" }}>
+                      {label}
+                    </button>
+                  ))}
+                  {search && <button onClick={() => setSearch("")} style={{ background:"transparent", border:"1px solid "+BORDER, borderRadius:20, padding:"5px 10px", cursor:"pointer", fontSize:11, color:MUTED }}>✕</button>}
+                </div>
+                <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:14, maxHeight:300, overflowY:"auto" }}>
+                  {filteredFoods.map(food => (
+                    <div key={food.id} className="food-item" onClick={() => { setSelectedFood(food); setGrams(String(food.defaultG||100)); }}
+                      style={{ background:(selectedFood && selectedFood.id===food.id)?A+"15":CARD, border:"1px solid "+((selectedFood && selectedFood.id===food.id)?A+"44":BORDER), borderRadius:11, padding:"12px 14px", transition:"all 0.15s", display:"flex", alignItems:"center", gap:12, cursor:"pointer" }}>
+                      <span style={{ fontSize:22 }}>{food.emoji}</span>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontFamily:"'DM Sans',sans-serif", fontWeight:700, fontSize:13 }}>{food.name}</div>
+                        <div style={{ fontSize:10, color:MUTED, marginTop:2 }}>per 100g: {food.per100.kcal}kcal · {food.per100.protein}g P · {food.per100.carbs}g C · {food.per100.fat}g F</div>
+                      </div>
+                      {(selectedFood && selectedFood.id===food.id) && <span style={{ color:A }}>✓</span>}
+                    </div>
+                  ))}
+                </div>
+                {selectedFood && (
+                  <div style={{ background:CARD, borderRadius:14, border:"1px solid "+A+"33", padding:"16px", marginBottom:14 }}>
+                    <div style={{ fontFamily:"'DM Sans',sans-serif", fontWeight:700, marginBottom:12 }}>{selectedFood.emoji} {selectedFood.name}</div>
+                    <div style={{ display:"flex", gap:10, alignItems:"center", marginBottom:12 }}>
+                      <label style={{ fontSize:11, color:MUTED, whiteSpace:"nowrap" }}>GRAMS</label>
+                      <input type="number" inputMode="decimal" className="field" value={grams} onChange={e => setGrams(e.target.value)} placeholder="100" />
+                    </div>
+                    {previewMacros && (
+                      <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+                        {[["KCAL",previewMacros.kcal,A],["PROTEIN",previewMacros.protein+"g","#C8F135"],["CARBS",previewMacros.carbs+"g","#35C8F1"],["FAT",previewMacros.fat+"g","#F1A835"]].map(([l,v,c]) => (
+                          <div key={l} style={{ background:"#0d0d0d", borderRadius:8, padding:"8px 12px", textAlign:"center" }}>
+                            <div style={{ fontSize:9, color:MUTED, letterSpacing:1 }}>{l}</div>
+                            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:20, color:c, lineHeight:1 }}>{v}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div style={{ background:CARD, borderRadius:14, border:"1px solid "+BORDER, padding:"16px", marginBottom:14 }}>
+                <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                  {[["Food name","name","text"],["Calories (kcal)","kcal","number"],["Protein (g)","protein","number"],["Carbs (g)","carbs","number"],["Fat (g)","fat","number"]].map(([ph,key,type]) => (
+                    <input key={key} type={type} inputMode={type==="number"?"decimal":undefined} className="field" placeholder={ph} value={custom[key]} onChange={e => setCustom(c => ({ ...c, [key]: e.target.value }))} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button onClick={addEntry}
+              disabled={customMode ? (!custom.name||!custom.kcal) : (!selectedFood||!grams)}
+              style={{ width:"100%", background:A, border:"none", borderRadius:12, padding:"14px", color:DARK, cursor:"pointer", fontSize:15, fontFamily:"'DM Sans',sans-serif", fontWeight:700, opacity:(customMode?(!custom.name||!custom.kcal):(!selectedFood||!grams))?0.4:1, transition:"opacity 0.15s" }}>
+              {activeMeal ? "Add to "+(MEALS.find(m=>m.id===activeMeal)||{}).label : "↑ Select a meal first"}
+            </button>
+          </div>
+        )}
+
+        {/* HISTORY */}
+        {nav === "history" && (
+          <div className="fade" style={{ marginTop:16 }}>
+            {histDates.length > 0 && (
+              <div style={{ background:CARD, borderRadius:14, border:"1px solid "+BORDER, padding:"16px 18px", marginBottom:14 }}>
+                <div style={{ fontSize:10, color:MUTED, letterSpacing:1.5, marginBottom:12 }}>7-DAY AVERAGES</div>
+                {(() => {
+                  const last7 = histDates.slice(0,7);
+                  const avg = last7.reduce((a,d) => { const t=dayTotals(d); return { kcal:a.kcal+t.kcal, protein:a.protein+t.protein }; }, {kcal:0,protein:0});
+                  const n = last7.length;
+                  const ak = Math.round(avg.kcal/n);
+                  const ap = Math.round(avg.protein/n);
+                  return (
+                    <div style={{ display:"flex", gap:16, flexWrap:"wrap" }}>
+                      <div><div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:32, color:A, lineHeight:1 }}>{ak}</div><div style={{ fontSize:10, color:MUTED }}>kcal / day</div></div>
+                      <div><div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:32, color:WHITE, lineHeight:1 }}>{ap}g</div><div style={{ fontSize:10, color:MUTED }}>protein / day</div></div>
+                      <div style={{ marginLeft:"auto", textAlign:"right" }}>
+                        <div style={{ fontSize:11, color: ap>=TARGETS.protein?"#35F1A8":"#F1A835" }}>{ap>=TARGETS.protein?"✓ Protein target met":"⚠️ Below protein target"}</div>
+                        <div style={{ fontSize:11, color:MUTED, marginTop:4 }}>Target: {TARGETS.protein}g / day</div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {histDates.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"50px 20px", color:MUTED }}>
+                <div style={{ fontSize:44 }}>📋</div>
+                <div style={{ marginTop:12, fontSize:13 }}>No sessions yet. Log your first meal!</div>
+              </div>
+            ) : histDates.map(d => {
+              const t = dayTotals(d);
+              const dt = new Date(d+"T12:00:00");
+              const water = (data[d] && data[d].water) || 0;
+              return (
+                <div key={d} style={{ background:CARD, borderRadius:14, border:"1px solid "+BORDER, padding:"14px 16px", marginBottom:10 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12 }}>
+                    <div style={{ background:"#1a1a1a", borderRadius:8, padding:"5px 10px", textAlign:"center", minWidth:48 }}>
+                      <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:22, color:A, lineHeight:1 }}>{dt.getDate()}</div>
+                      <div style={{ fontSize:9, color:MUTED, letterSpacing:1 }}>{dt.toLocaleDateString("en-GB",{month:"short"}).toUpperCase()}</div>
+                    </div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontFamily:"'DM Sans',sans-serif", fontWeight:700, fontSize:13 }}>{dt.toLocaleDateString("en-GB",{weekday:"long"})}</div>
+                      <div style={{ fontSize:11, color:MUTED, marginTop:2 }}>{Math.round(t.kcal)} kcal · {Math.round(t.protein)}g protein · {(water/1000).toFixed(1)}L water</div>
+                    </div>
+                    <button onClick={() => { const n={...data}; delete n[d]; setData(n); }} style={{ background:"transparent", border:"1px solid #2a2a2a", borderRadius:7, padding:"5px 9px", color:"#555", cursor:"pointer", fontSize:12 }}>✕</button>
+                  </div>
+                  {[
+                    ["CALORIES", Math.min(t.kcal/TARGETS.kcal,1), Math.round(t.kcal), TARGETS.kcal, "kcal", t.kcal>TARGETS.kcal?"#F13535":A],
+                    ["PROTEIN",  Math.min(t.protein/TARGETS.protein,1), Math.round(t.protein), TARGETS.protein, "g", "#C8F135"],
+                  ].map(([lbl, pct, curr, tgt, unit, col]) => (
+                    <div key={lbl} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
+                      <span style={{ fontSize:9, color:MUTED, width:52, letterSpacing:1 }}>{lbl}</span>
+                      <div style={{ flex:1, height:5, background:"#1a1a1a", borderRadius:3, overflow:"hidden" }}>
+                        <div style={{ width:pct*100+"%", height:"100%", background:col, borderRadius:3 }} />
+                      </div>
+                      <span style={{ fontSize:10, color:MUTED, minWidth:60, textAlign:"right" }}>{curr}/{tgt}{unit}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {toast && (
+        <div style={{ position:"fixed", bottom:28, left:"50%", transform:"translateX(-50%)", background:"#1e1e1e", color:WHITE, padding:"11px 20px", borderRadius:10, fontSize:13, fontWeight:600, zIndex:200, boxShadow:"0 8px 32px rgba(0,0,0,0.5)", animation:"toastIn 0.2s ease", whiteSpace:"nowrap", fontFamily:"'DM Sans',sans-serif" }}>
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(App));
+  </script>
+</body>
+</html>

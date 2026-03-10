@@ -1,0 +1,10 @@
+{
+  "name": "FuelLog — Nutrition Tracker",
+  "short_name": "FuelLog",
+  "description": "Science-based macro tracker for your PPL recomp plan",
+  "theme_color": "#080808",
+  "background_color": "#080808",
+  "display": "standalone",
+  "orientation": "portrait",
+  "start_url": "/"
+}
